@@ -79,6 +79,7 @@ class Game:
         team_id = play.team_id
         if self.has_loaded_team_ids():
             if play.team_id != self.team1_id and play.team_id != self.team2_id:
+                print(play.team_id, self.team1_id, self.team2_id)
                 raise Exception("Error: there is more than 2 teams in this game??")
         else:
             self.add_team(team_id)
@@ -92,7 +93,7 @@ class Game:
             return
         if self.team1_id == None:
             self.team1_id = team_id
-        else if self.team2_id == None:
+        elif self.team2_id == None:
             self.team2_id = team_id
         else:
             raise Exception("tried to add 3rd team")
@@ -101,7 +102,7 @@ class Game:
         if team_id == self.team_id1:
             self.active1.pop(player_to_bench)
             self.active1.add(player_to_add)
-        else if team_id == self.team_id2:
+        elif team_id == self.team_id2:
             self.active2.pop(player_to_bench)
             self.active2.add(player_to_add)
         else:
@@ -125,14 +126,14 @@ def build_id_to_game_map():
                 game = games[game_id]
             else:
                 game = Game(game_id)
-                games[game_id] = play_list
+                games[game_id] = game
             game.add_play(play)
 
     f.close()
     return games
 
 id_to_game_map = build_id_to_game_map()
-for game_id in id_to_game_map.keys():
-    game = id_to_game_map[game_id]
-    for play in game.plays:
-        print(play)
+# for game_id in id_to_game_map.keys():
+#     game = id_to_game_map[game_id]
+#     for play in game.plays:
+#         print(play)
