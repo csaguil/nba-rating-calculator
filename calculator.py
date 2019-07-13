@@ -61,7 +61,10 @@ class Game:
         self.active1 = set()
         self.active2 = set()
         self.ratings = dict()
-        # self.points_team1_scored_since_last_substutiion
+        self.points_team1_scored_since_last_substutiion = 0
+        self.points_team1_scored_since_last_substutiion = 0
+        self.total_points1 = 0
+        self.total_points2 = 0
 
     def get_plays(self):
         return self.plays
@@ -69,6 +72,8 @@ class Game:
     def handle_made_shot(self, play):
         points_scored = int(play.option1)
         if play.person1 in self.active1:
+            self.total_points1 += points_scored
+            self.points_team1_scored_since_last_substutiion
             offense_team = self.active1
             defense_team = self.active2
         elif play.person1 in self.active2:
