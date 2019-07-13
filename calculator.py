@@ -55,41 +55,32 @@ class Rating:
 class Game:
     def __init__(self, game_id):
         self.game_id = game_id
-        self.team1_id = None
-        self.team2_id = None
+        self.team_ids = [None, None]
         self.plays = list()
-        self.active1 = set()
-        self.active2 = set()
+        self.active_players = [set(), set()]
         self.ratings = dict()
-        self.points_team1_scored_since_last_substutiion = 0
-        self.points_team1_scored_since_last_substutiion = 0
-        self.total_points1 = 0
-        self.total_points2 = 0
+        self.points_since_sub = [0, 0]
+        self.total_points = [0, 0]
 
     def get_plays(self):
         return self.plays
 
     def handle_made_shot(self, play):
         points_scored = int(play.option1)
-        if play.person1 in self.active1:
-            self.total_points1 += points_scored
-            self.points_team1_scored_since_last_substutiion
-            offense_team = self.active1
-            defense_team = self.active2
-        elif play.person1 in self.active2:
-            offense_team = self.active2
-            defense_team = self.active1
-        else:
-            raise Exception("person1 is not listed as active")
+        team_id = self.get_team_id(play.person1)
+        team_num = None
+        for i in range(len(self.team_ids)):
+            if self.team_ids[i] == team_id:
+                team_num = i
 
-        for player_id in offense_team:
-            self.ratings[player_id].increase_o_rating(points_scored)
-        for player_id in defense_team:
-            self.ratings[player_id].increase_d_rating(points_scored)
+        if team_num == None:
+            raise Exception("Couldnt find a team for player with id: " + play.person1 + " on team : " + team_id)
+
+        self.total_points[team_num] += points_scored
+        self.points_since_sub[team_num] += points_scored
+
 
     def simulate(self):
-        score1 = 0
-        score2 = 0
         for play in game.plays:
             #if the play was a made shot or free throw
             if play.event_msg_type == 1 or play.event_msg_type == 3:
@@ -101,10 +92,10 @@ class Game:
                 self.make_sub(self.get_team_id(to_add), to_add, to_bench)
 
     def increment_possession():
-        for rtg in self.active1:
-            rtg.increment_possession()
-        for rtg in self.active2:
-            rtg.increment_possession()
+        for player_set in self.active_players:
+            for rtg in player_set:
+                rtg.increment_possession()
+
 
     def add_play(self, play):
         accepted_plays = {1, 2, 8}
@@ -112,8 +103,8 @@ class Game:
             team_id = self.get_team_id(play.person1)
 
             if self.has_loaded_team_ids():
-                if play.team_id != self.team1_id and play.team_id != self.team2_id:
-                    print(play.team_id, self.team1_id, self.team2_id)
+                if play.team_id not in self.team_ids:
+                    print(play.team_id, self.team_ids[0], self.team_ids[1])
                     raise Exception("Error: there is more than 2 teams in this game??")
             else:
                 self.add_team(team_id)
@@ -140,28 +131,53 @@ class Game:
         return Game.game_id_player_id_to_team_id[(self.game_id, player_id)]
 
     def has_loaded_team_ids(self):
-        return self.team1_id != None and self.team2_id != None
+        return None not in self.team_ids
 
     def add_team(self, team_id):
-        if self.team1_id == team_id:
-            return
-        if self.team1_id == None:
-            self.team1_id = team_id
-        elif self.team2_id == None:
-            self.team2_id = team_id
-        else:
-            raise Exception("tried to add 3rd team")
+        team_added = False
+        for i in range(len(self.team_ids)):
+            if self.team_ids[i] == None:
+                self.team_ids[i] = team_id
+                return
+            elif self.team_ids[i] == team_id:
+                return
+
+        raise Exception("tried to add 3rd team")
 
     def make_sub(self, team_id, player_to_add, player_to_bench):
         print("made sub: ", player_to_add, player_to_bench)
-        if team_id == self.team_id1:
-            self.active1.pop(player_to_bench)
-            self.active1.add(player_to_add)
-        elif team_id == self.team_id2:
-            self.active2.pop(player_to_bench)
-            self.active2.add(player_to_add)
+
+        if team_id == self.team_ids[0]:
+            active_team = 0
+            passive_team = 1
+        elif team_id == self.team_ids[1]:
+            active_team = 1
+            passive_team = 0
         else:
             raise Exception("tried to add player on team not involved in game")
+
+        if player_to_bench not in self.ratings.keys():
+            #PLAYER WAS A STARTER
+            self.ratings[player_to_bench] = Rating(self.game_id, team_id, player_to_bench)
+            self.ratings[player_to_bench].increase_o_rating(self.total_points[active_team])
+            self.ratings[player_to_bench].increase_d_rating(self.total_points[passive_team])
+
+        for player in self.active_players[active_team]:
+            self.ratings[player].increase_o_rating(self.points_since_sub[active_team])
+            self.ratings[player].increase_d_rating(self.points_since_sub[passive_team])
+
+        for player in self.active_players[passive_team]:
+            self.ratings[player].increase_o_rating(self.points_since_sub[passive_team])
+            self.ratings[player].increase_d_rating(self.points_since_sub[active_team])
+
+        for i in range(len(self.points_since_sub)):
+            self.points_since_sub[i] = 0
+
+        if player_to_bench in self.active_players[active_team]:
+            self.active_players[active_team].remove(player_to_bench)
+        self.active_players[active_team].add(player_to_add)
+        self.ratings[player_to_add] = Rating(self.game_id, team_id, player_to_add)
+
 
 
 
