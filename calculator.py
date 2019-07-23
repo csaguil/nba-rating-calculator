@@ -30,6 +30,12 @@ class Game:
         self.to = 0
         self.team_fouls = [0, 0]
         self.tech_q = list() #queue of players who were on the court during a technical foul
+        self.scorers_table = []
+        self.num_ongoing_fouls = 0
+
+        #todo:remove
+        self.event_code_dict = build_ec_dict()
+
 
     def sort_plays(self):
         cmp = functools.cmp_to_key(Play.compare)
@@ -78,126 +84,97 @@ class Game:
     def get_plays(self):
         return self.plays
 
-    def handle_made_shot(self, play, points_scored):
+    def handle_point_scored(self, play, points_scored):
         team_num = self.get_team_num(play.person1)
         if team_num == None:
             raise Exception("Couldnt find a team for player with id: " + play.person1 + " on team : " + team_id)
 
         self.total_points[team_num] += points_scored
-        self.points_since_sub[team_num] += points_scored
+        self.update_all_active_players(points_scored, play.person1)
 
     def is_final_ft(self, play):
         final_ft_codes = {10, 12, 15, 16, 17, 19, 20, 22, 26, 29}
         return play.action_type in final_ft_codes
 
+    def get_play_time(self, play):
+        tenths_secs = play.pc_time
+        secs = float(tenths_secs / 10)
+        minutes_left = math.floor(secs / 60)
+        secs_left = float(secs % 60)
+        return str(minutes_left) + ":" + str(secs_left)
+
+    def get_play_description_string(self, play):
+        return self.event_code_dict[play.event_msg_type, play.action_type]
+
     def simulate(self):
         self.sort_plays()
-        in_ft = False
-        scorers_table = []
-        #TODO: REMOVE
-        event_code_dict = build_ec_dict()
-        num_ongoing_fouls = 0
+        for i in range(len(game.plays)):
+            play = game.plays[i]
+            try:
+                play_str = self.get_play_description_string(play)
+                play_time = self.get_play_time(play)
+                if self.num_ongoing_fouls < 0:
+                    raise Exception("Number of on going fouls should never be negative and it is : ", self.num_ongoing_fouls)
+                if play.event_msg_type == 1:
+                    #made field goal
+                    self.handle_point_scored(play, play.option1)
+                elif play.event_msg_type == 4:
+                    #REBOUND
+                    rebounder = play.person1
+                    self.tr += 1
+                elif play.event_msg_type == 5:
+                    #Turnover
+                    self.to += 1
+                elif play.event_msg_type == 6 or play.event_msg_type == 7:
+                    #Foul or Violation
+                    if self.will_result_in_ft(play):
+                        self.num_ongoing_fouls += 1
+                        print(play_time + play_str + " num_ongoing_fouls: ", self.num_ongoing_fouls)
+                elif play.event_msg_type == 3 and play.action_type != 0:
+                    #FREE THROW
+                    self.handle_ft(play)
+                elif play.event_msg_type == 8:
+                    #SUBSTITUTION
+                    to_add = play.person2
+                    to_bench = play.person1
+                    print("TRIES TO SUB:", to_add, to_bench, "num_ongoing_fouls", self.num_ongoing_fouls)
+                    # #only make sub until after free throw is completed
+                    if self.num_ongoing_fouls == 0:
+                        self.make_sub(self.get_team_id(to_add), to_add, to_bench)
+                    else:
+                        self.scorers_table.append(Substitution(to_add, to_bench))
+                elif play.event_msg_type == 13:
+                    #end period
+                    print("ENDING QUARTER")
+                    #TODO:REMOVE
+                    x = 10
+                elif play.event_msg_type == 12:
+                    #START period
+                    print("STARTING QUARTER")
+                    self.team_fouls = [0, 0]
+                    self.active_players[0] = self.get_starters_for_period(play.period, 0)
+                    self.active_players[1] = self.get_starters_for_period(play.period, 1)
 
-        for play in game.plays:
-            tenths_secs = play.pc_time
-            secs = float(tenths_secs / 10)
-            minutes_left = math.floor(secs / 60)
-            secs_left = float(secs % 60)
-            play_str = event_code_dict[play.event_msg_type, play.action_type]
-            if play.event_msg_type == 1:
-                #made field goal
-                self.handle_made_shot(play, play.option1)
+                elif play.event_msg_type == 16:
+                    #END OF GAME
+                    self.write_all_ratings()
 
-                # if self.active_players[1] and "0b978fcfa7f2ec839c563a755e345ff8" in self.active_players[1]:
-                #     print("SWAGGY P")
-                #     print(play_str, str(minutes_left) + ":" + str(secs_left), self.total_points[0], self.total_points[1])
-                #     print()
-                # print(play_str, str(minutes_left) + ":" + str(secs_left), self.total_points[0], self.total_points[1])
-                # print(play.person1)
-                # print()
-            elif play.event_msg_type == 4:
-                #REBOUND
-                rebounder = play.person1
-                self.tr += 1
+                if self.is_end_possession(play):
+                    self.switch_possession(play)
+                self.prev_play = play
+            except Exception as e:
+                print("==============================")
+                error_plays = game.plays[i-5:i+5]
+                for error_play in error_plays:
+                    if error_play == play:
+                        print("******************************")
+                    play_str = self.get_play_description_string(error_play)
+                    play_time = self.get_play_time(error_play)
+                    print(play_time, play_str, error_play)
+                    if error_play == play:
+                        print("******************************")
+                raise e
 
-            elif play.event_msg_type == 5:
-                #Turnover
-                self.to += 1
-
-            elif play.event_msg_type == 6:
-                #Foul
-                if self.will_result_in_ft(play):
-                    in_ft = True
-                self.team_fouls[self.get_team_num(play.person1)] += 1
-                if play.action_type in {11, 12, 13, 14, 15, 17, 18, 19, 21, 25, 30}:
-                    involved = [self.active_players[0].copy(), self.active_players[1].copy()]
-                    if len(scorers_table) > 0:
-                        for sub in scorers_table:
-                            team_num = self.get_team_num(sub.to_add)
-                            involved[team_num].remove(sub.to_bench)
-                            involved[team_num].add(sub.to_add)
-                    self.tech_q.append(involved)
-
-            elif play.event_msg_type == 3 and play.action_type != 0:
-                #FREE THROW
-                in_ft = True
-                self.handle_ft(play)
-
-                if self.is_final_ft(play):
-                    while len(scorers_table) > 0:
-                        sub = scorers_table.pop(0)
-                        self.make_sub(self.get_team_id(sub.to_add), sub.to_add, sub.to_bench)
-                    in_ft = False
-                #print(play_str, str(minutes_left) + ":" + str(secs_left), self.total_points[0], self.total_points[1])
-                # if self.active_players[1] and "0b978fcfa7f2ec839c563a755e345ff8" in self.active_players[1]:
-                #     print("SWAGGY P")
-                #     print(play_str, str(minutes_left) + ":" + str(secs_left), self.total_points[0], self.total_points[1])
-                #     print()
-                    pass
-
-            elif play.event_msg_type == 8:
-                #SUBSTITUTION
-                to_add = play.person2
-                to_bench = play.person1
-                if to_bench == "a1591595c04d12e88e3cb427fb667618":
-                    print("DRAYMOND")
-                    print("subbing in", to_add)
-                    print(play_str, str(minutes_left) + ":" + str(secs_left), self.total_points[0], self.total_points[1])
-                # if to_bench == "95920e4bf5b6c15ba8dffbf959b38ba5":
-                #     print(play_str, str(minutes_left) + ":" + str(secs_left), self.total_points[0], self.total_points[1])
-                #     print(play)
-                #     print(self.ratings["95920e4bf5b6c15ba8dffbf959b38ba5"])
-                #     print(self.ratings["95920e4bf5b6c15ba8dffbf959b38ba5"].o_rating - self.ratings["95920e4bf5b6c15ba8dffbf959b38ba5"].d_rating)
-                # #only make sub until after free throw is completed
-                if not in_ft:
-                    self.make_sub(self.get_team_id(to_add), to_add, to_bench)
-                else:
-                    scorers_table.append(Substitution(to_add, to_bench))
-                # if to_bench == "0b978fcfa7f2ec839c563a755e345ff8":
-                #     print('SUBBING OUT SWAGGY P', str(minutes_left) + ":" + str(secs_left), self.total_points[0], self.total_points[1])
-                #     print("NEW RATING")
-                #     print(self.ratings["0b978fcfa7f2ec839c563a755e345ff8"])
-                # elif to_add == "0b978fcfa7f2ec839c563a755e345ff8":
-                #     print("SUBBING IN SWAGGY P")
-            elif play.event_msg_type == 13:
-                #end period
-                print("ENDING QUARTER")
-                self.update_all_active_players()
-            elif play.event_msg_type == 12:
-                #START period
-                print("STARTING QUARTER")
-                print(self.ratings["bfef77a3e57907855444410d490e7bfd"])
-                self.team_fouls = [0, 0]
-                self.active_players[0] = self.get_starters_for_period(play.period, 0)
-                self.active_players[1] = self.get_starters_for_period(play.period, 1)
-
-            elif play.event_msg_type == 16:
-                #END OF GAME
-                self.write_all_ratings()
-
-            if self.is_end_possession(play):
-                self.switch_possession(play)
-            self.prev_play = play
 
     def get_team_num(self, pid):
         team_id = self.get_team_id(pid)
@@ -207,30 +184,38 @@ class Game:
         return None
 
     def handle_ft(self, play):
-        if self.is_tech_ft(play):
-            if not self.is_final_ft(play):
-                involved = self.tech_q[0]
-            else:
-                involved = self.tech_q.pop(0)
-            if self.did_make_ft(play):
-                free_throw_scored = [0,0]
-                team_num = self.get_team_num(play.person1)
-                free_throw_scored[team_num] = 1
-                self.total_points[team_num] += 1
-                self.update_players(involved, free_throw_scored)
-
-        elif self.did_make_ft(play):
-            self.handle_made_shot(play, 1)
+        if self.did_make_ft(play):
+            self.handle_point_scored(play, 1)
+        if self.is_final_ft(play):
+            self.num_ongoing_fouls -= 1
+            play_time = self.get_play_time(play)
+            play_string = self.get_play_description_string(play)
+            print(play_time + play_string + " num_ongoing_fouls: ", self.num_ongoing_fouls)
+            if self.num_ongoing_fouls == 0:
+                while len(self.scorers_table) > 0:
+                    sub = self.scorers_table.pop(0)
+                    self.make_sub(self.get_team_id(sub.to_add), sub.to_add, sub.to_bench)
 
     def will_result_in_ft(self, play):
-        return play.option1 == 1 or (play.event_msg_type == 6 and play.action_type == 2)
+        fouls_action_type_that_lead_to_ft = {2, 11, 12, 13, 14, 15, 17, 18, 19, 21, 25, 30}
+        return (
+                    #fouls
+                    play.event_msg_type == 6 and
+                    (
+                        play.action_type in fouls_action_type_that_lead_to_ft or
+                        play.option1 != 0 or
+                        play.option3 != 0
+                    ) or
+                    (
+                        #lane violation
+                        play.event_msg_type == 7 and
+                        play.action_type == 3
+                    )
+                )
 
     def did_make_ft(self, play):
+        assert play.event_msg_type == 3, "You are checking if play is a made freethrow but the play wasn't a freethrow"
         return play.option1 == 1
-
-    def is_tech_ft(self, play):
-        return play.action_type in {16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29}
-        {11, 12, 13, 14, 15, 17, 18, 19, 21, 25, 30}
 
     def write_all_ratings(self):
         for key in self.ratings.keys():
@@ -243,8 +228,11 @@ class Game:
                 self.ratings[player].increase_o_rating(points[i])
                 self.ratings[player].increase_d_rating(points[(i + 1) % 2])
 
-    def update_all_active_players(self):
-        self.update_players(self.active_players, self.points_since_sub)
+    def update_all_active_players(self, points_scored_by_player, player_id):
+        team_num = self.get_team_num(player_id)
+        points = [0, 0]
+        points[team_num] = points_scored_by_player
+        self.update_players(self.active_players, points)
         for i in range(len(self.points_since_sub)):
             self.points_since_sub[i] = 0
 
@@ -265,7 +253,7 @@ class Game:
         return False
 
     def made_final_free_throw(self, play):
-        if self.is_final_ft and play.option1 == 1:
+        if self.is_final_ft(play) and play.option1 == 1:
             return True
         return False
 
@@ -335,7 +323,8 @@ class Game:
             passive_team = 0
         else:
             raise Exception("tried to add player on team not involved in game")
-        self.update_all_active_players()
+        print("ACTUALLY SUBS: ", player_to_add, player_to_bench)
+
         self.active_players[active_team].remove(player_to_bench)
         self.active_players[active_team].add(player_to_add)
 
@@ -343,6 +332,7 @@ class Game:
             raise Exception("not exactly 5 players on court for each team")
 
 def build_id_to_game_map():
+    # f = open('Play_by_Play.txt', 'r')
     f = open('testplays.txt', 'r')
     games = dict() #dict game_id -> [ Play ]
     i = 0
@@ -408,7 +398,7 @@ for game_id in id_to_game_map.keys():
             ps[id] = game.total_points[i]
     game.simulate()
     print("final score: " + str(game.total_points))
-    #assert game.ratings["bfef77a3e57907855444410d490e7bfd"].getpm() == 8, "JAVALE IS WRONG " + str(game.ratings["bfef77a3e57907855444410d490e7bfd"].getpm())
+    assert game.ratings["bfef77a3e57907855444410d490e7bfd"].getpm() == 8, "JAVALE IS WRONG " + str(game.ratings["bfef77a3e57907855444410d490e7bfd"].getpm())
     print("Javale correct")
     assert game.ratings["fb64ca4b8beaf4c4c6e4575fe2f3abd7"].getpm() == -13, "LEBRON IS WRONG" + str(game.ratings["fb64ca4b8beaf4c4c6e4575fe2f3abd7"].getpm())
     print("Lebron correct")
