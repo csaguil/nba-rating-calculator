@@ -39,8 +39,8 @@ def main():
     outfile = open('WLRS_Q1_BBALL.csv', mode='w')
     stat_writer = csv.writer(outfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     stat_writer.writerow(["Game_ID", "Player_ID", "OffRtg", "DefRtg"])
-    gp = dict()
-    ps = dict()
+    gp = dict() #games played
+    ps = dict() #points scored
     for game_id in id_to_game_map.keys():
         game = id_to_game_map[game_id]
         print("Simulating Game " + str(game_id))

@@ -1,4 +1,5 @@
 import math
+import copy
 class Play:
     def __init__(self, game_id, event_num, event_msg_type, period, wc_time, pc_time, action_type, option1, option2, option3, team_id, person1, person2, person3, team_id_type, person1_type, person2_type, person3_type):
         self.game_id = game_id
@@ -43,11 +44,19 @@ class Play:
             return -1
         else:
             return -1
-            
+
     @staticmethod
     def is_final_ft(play):
         final_ft_codes = {10, 12, 15, 16, 17, 19, 20, 22, 26, 29}
-        return play.action_type in final_ft_codes
+        return play.action_type in final_ft_codes and self.event_msg_type == 3
+
+    @staticmethod
+    def is_missed_shot(play):
+        return play.event_msg_type == 2
+
+    def is_final_ft(self):
+        final_ft_codes = {10, 12, 15, 16, 17, 19, 20, 22, 26, 29}
+        return self.action_type in final_ft_codes and self.event_msg_type == 3
 
     def will_result_in_ft(self):
         fouls_action_type_that_lead_to_ft = {2, 11, 12, 13, 14, 15, 17, 18, 19, 21, 25, 30}
@@ -69,10 +78,6 @@ class Play:
     def did_make_ft(self):
         assert self.event_msg_type == 3, "You are checking if play is a made freethrow but the play wasn't a freethrow"
         return self.option1 == 1
-
-    def is_final_ft(self):
-        final_ft_codes = {10, 12, 15, 16, 17, 19, 20, 22, 26, 29}
-        return self.action_type in final_ft_codes
 
     def made_final_ft(self):
         return self.is_final_ft() and self.option1 == 1

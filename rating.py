@@ -24,11 +24,9 @@ class Rating:
         self.num_possessions += 1
 
     def increase_o_rating(self, value):
-        #print("increasing o_rating of player " + str(self.player_id) + " by " + str(value))
         self.o_rating += value
 
     def increase_d_rating(self, value):
-        #print("increasing d_rating of player " + str(self.player_id) + " by " + str(value))
         self.d_rating += value
 
     def getpm(self):

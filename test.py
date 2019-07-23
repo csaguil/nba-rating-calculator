@@ -63,3 +63,5 @@ print('============ALL TESTS PASSED===============')
 #test link and id
 #https://www.espn.com/nba/playbyplay?gameId=401034613
 #3ce947db2df86b08a40b7526e2faaccb
+#
+#We figured out which game the data came from based on the final score of the game, and cross checking it with published play by plays

@@ -114,7 +114,7 @@ class Game:
 
     def get_play_description_string(self, play):
         return Game.event_code_dict[play.event_msg_type, play.action_type]
-        
+
     def get_starters_for_period(self, period_num, team_num):
         starters = set()
         f = open("Game_Lineup.txt", 'r')
@@ -253,13 +253,12 @@ class Game:
         if play.event_msg_type in {1, 5, 13}:
             return True
         elif play.event_msg_type == 3:
-            #TODO: make sure to check the free throw went in
             if play.made_final_ft():
                 return True
         elif play.event_msg_type == 4:
             #if it was a rebound
             if self.prev_play:
-                if Play.is_final_ft(self.prev_play) or self.prev_play.event_msg_type == 2:
+                if Play.is_final_ft(self.prev_play) or Play.is_missed_shot(self.prev_play):
                     #if the previous play was a free throw or a missed shot
                     team_shooting_free_throw = self.get_team_id(self.prev_play.person1)
                     if team_shooting_free_throw != play.team_id:
@@ -291,9 +290,6 @@ class Game:
 
     def get_team_id(self, player_id):
         return Game.game_id_player_id_to_team_id[(self.game_id, player_id)]
-
-    def has_loaded_team_ids(self):
-        return None not in self.team_ids
 
     def make_sub(self, team_id, player_to_add, player_to_bench):
         if team_id == self.team_ids[0]:
