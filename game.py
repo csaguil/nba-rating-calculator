@@ -114,7 +114,7 @@ class Game:
 
     def get_play_description_string(self, play):
         return Game.event_code_dict[play.event_msg_type, play.action_type]
-        
+
     def get_starters_for_period(self, period_num, team_num):
         starters = set()
         f = open("Game_Lineup.txt", 'r')
@@ -178,14 +178,9 @@ class Game:
                         self.make_sub(self.get_team_id(to_add), to_add, to_bench)
                     else:
                         self.scorers_table.append(Substitution(to_add, to_bench))
-                elif play.event_msg_type == 13:
-                    #end period
-                    print("ENDING QUARTER")
-                    #TODO:REMOVE
-                    x = 10
                 elif play.event_msg_type == 12:
                     #START period
-                    print("STARTING QUARTER")
+                    # print("STARTING QUARTER")
                     self.team_fouls = [0, 0]
                     self.active_players[0] = self.get_starters_for_period(play.period, 0)
                     self.active_players[1] = self.get_starters_for_period(play.period, 1)

@@ -13,12 +13,12 @@ class Rating:
     def get_o_rating_per_100(self):
         if self.num_possessions == 0:
             return 0
-        return int((self.o_rating / self.num_possessions) * 100)
+        return round((self.o_rating / self.num_possessions) * 100)
 
     def get_d_rating_per_100(self):
         if self.num_possessions == 0:
             return 0
-        return int((self.d_rating / self.num_possessions) * 100)
+        return round((self.d_rating / self.num_possessions) * 100)
 
     def increment_possession(self):
         self.num_possessions += 1

@@ -57,15 +57,15 @@ def main():
         game.simulate(stat_writer)
 
         print("final score: ", game.total_points)
-        for pid in game.ratings:
-            rating = game.ratings[pid]
-            print(rating)
-            print(rating.o_rating - rating.d_rating)
+        # for pid in game.ratings:
+        #     rating = game.ratings[pid]
+        #     print(rating)
+        #     print(rating.o_rating - rating.d_rating)
         print()
     outfile.close()
     print("" + str(len(id_to_game_map)) + " games simulated")
     print()
-    print(gp)
+    # print(gp)
 
 if __name__ == "__main__":
     main()
