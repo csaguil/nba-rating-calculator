@@ -7,6 +7,9 @@ class Rating:
         self.d_rating = 0
         self.num_possessions = 0
 
+    def __str__(self):
+        return self.player_id + "|| +/-: " + str(self.getpm()) + " || O Rating: " + str(self.get_o_rating_per_100()) + " || D Rating: " + str(self.get_d_rating_per_100())
+
     def get_o_rating_per_100(self):
         if self.num_possessions == 0:
             return 0
